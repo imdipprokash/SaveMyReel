@@ -1,0 +1,3 @@
+export const BANNER_ID1 = 'ca-app-pub-3346761957556908/7246132561';
+export const BANNER_ID2 = 'ca-app-pub-3346761957556908/8000811030';
+export const REWARDED_ID = 'ca-app-pub-3346761957556908/1626974379';

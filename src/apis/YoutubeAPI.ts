@@ -18,7 +18,6 @@ export const getVideoInfo = async ({url}: get_infoPros) => {
 };
 
 export const getDownloadLink = async ({vide_type, key}: any) => {
-  // https://cdn35.savetube.me/download/video/720/ff25a652dfbed8d1a4c1ef2359af1811ed009b27
   let config = {
     method: 'get',
     maxBodyLength: Infinity,

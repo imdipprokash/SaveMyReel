@@ -1,4 +1,8 @@
 {
   "name": "savemyreel",
-  "displayName": "savemyreel"
+  "displayName": "savemyreel",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3346761957556908~4333964549",
+    "ios_app_id": "ca-app-pub-3346761957556908~4988503146"
+  }
 }

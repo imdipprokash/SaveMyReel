@@ -2,6 +2,7 @@ import axios from 'axios';
 //https://www.facebook.com/reel/3779502245672060
 // publer.io
 export const getReelInfo = async ({url}: {url: string}) => {
+  console.log(url);
   let data = JSON.stringify({
     url: url,
     iphone: true,

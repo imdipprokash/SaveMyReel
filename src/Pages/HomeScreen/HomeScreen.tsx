@@ -12,14 +12,55 @@ import {
   Image,
   ToastAndroid,
   Alert,
+  Permission,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
 import {getReelDownloadURl, getReelInfo} from '../../apis/FBReelAPI';
 import RNFetchBlob from 'rn-fetch-blob';
-import * as Progress from 'react-native-progress';
-import {getInstReelDownloadLink} from '../../apis/InstaAPI';
+import axios from 'axios';
+import {getVideoInfo} from '../../apis/YoutubeAPI';
+import AdsScreen from '../../AdsId/AdsScreen';
+import {BANNER_ID1, BANNER_ID2, REWARDED_ID} from '../../AdsId/AdsId';
+import {
+  RewardedInterstitialAd,
+  RewardedAdEventType,
+  TestIds,
+} from 'react-native-google-mobile-ads';
 
 type Props = {};
+const adUnitId = __DEV__ ? TestIds.REWARDED_INTERSTITIAL : REWARDED_ID;
+
+const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest(
+  adUnitId,
+  {
+    keywords: ['fashion', 'clothing'],
+  },
+);
+
+const requestStoragePermission = async () => {
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      {
+        title: 'Storage Permission',
+        message: 'App needs access to your storage to download files.',
+        buttonNeutral: 'Ask Me Later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
+      },
+    );
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      console.log('Permission granted');
+      // Proceed with file download
+    } else {
+      console.log('Permission denied');
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+};
 
 const HomeScreen = (props: Props) => {
   const intervalIdRef: any = useRef(null);
@@ -28,22 +69,29 @@ const HomeScreen = (props: Props) => {
   const [fbReelStatus, setFbReelStatus] = useState({});
   const [fbReelJobId, setFbReelJobId] = useState('');
   const [fbReelInfo, setFbReelInfo] = useState<any>(undefined);
+  const [loaded, setLoaded] = useState(false);
+  const [instaReelInfo, setInstaReelInfo] = useState<any>(undefined);
+
+  const [youtubeReelInfo, setYoutubeReelInfo] = useState<any>(undefined);
 
   //
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadCompleted, setDownloadCompleted] = useState(false);
 
-  const downloadFile = ({url}: {url: string}) => {
+  const downloadFile = async ({url}: {url: string}) => {
     setIsDownloading(true);
     setDownloadCompleted(false);
     setDownloadProgress(0);
+    rewardedInterstitial.show();
 
     const {config, fs} = RNFetchBlob;
-    const toDate = new Date();
-    const downloadPath = fs.dirs.DownloadDir + `/save_my_reel_video.mp4`;
+    const downloadPath =
+      fs.dirs.DownloadDir +
+      `/save_my_reel_video_${Math.random().toString(36).substring(7)}.mp4`;
+
     try {
-      config({
+      await config({
         fileCache: true,
         appendExt: 'mp4',
         path: downloadPath,
@@ -68,7 +116,9 @@ const HomeScreen = (props: Props) => {
         .finally(() => {
           setIsDownloading(false);
         });
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const GetReelInfoHandler = async () => {
@@ -76,8 +126,10 @@ const HomeScreen = (props: Props) => {
       ToastAndroid.show('Enter a reel url', 1000);
       return;
     }
-    // setLoading(true);
+    setLoading(true);
     setFbReelInfo(undefined);
+    setInstaReelInfo(undefined);
+    setYoutubeReelInfo(undefined);
     if (url.includes('facebook.com') || url.includes('fb.watch')) {
       try {
         const result = await getReelInfo({url});
@@ -86,35 +138,52 @@ const HomeScreen = (props: Props) => {
             job_id: result?.data?.job_id,
           });
 
-          console.log('reel_video_information', reel_video_information);
-
           if (reel_video_information?.status === 'working') {
             setFbReelJobId(result?.data?.job_id);
             setFbReelStatus('working');
           }
         }
       } catch (error) {
-        ToastAndroid.show('Server not working', 1000);
+        Alert.prompt('Please try again!');
         return;
       }
     } else if (url.includes('instagram.com')) {
-      console.log('Hlw');
+      const options = {
+        method: 'GET',
+        url: 'https://instagram-downloader.p.rapidapi.com/index',
+        params: {
+          url: url,
+        },
+        headers: {
+          'x-rapidapi-key':
+            '01d5613ffdmshd7ca4b4d3d606a2p184b43jsn35a8afacd250',
+          'x-rapidapi-host': 'instagram-downloader.p.rapidapi.com',
+        },
+      };
+
       try {
-        const result = await getInstReelDownloadLink({url});
-        console.log(result);
+        setLoading(false);
+        const response = await axios.request(options);
+        setInstaReelInfo(response.data?.result);
       } catch (error) {
-        console.log(error);
-        ToastAndroid.show('Server not working', 1000);
+        Alert.prompt('Please try again!');
         return;
       }
     } else if (url.includes('youtube.com')) {
-      console.log('YouTube');
+      try {
+        setLoading(false);
+        const response = await getVideoInfo({url});
+
+        setYoutubeReelInfo(response?.data?.data);
+      } catch (error) {
+        Alert.prompt('Please try again!');
+        return;
+      }
     } else {
       ToastAndroid.show('Enter a reel url', 1000);
       return;
     }
   };
-  const GetInstaReelHandler = async () => {};
 
   const GetFbReelInfo = async () => {
     if (fbReelJobId) {
@@ -153,6 +222,35 @@ const HomeScreen = (props: Props) => {
     }
   }, [downloadCompleted]);
 
+  useEffect(() => {
+    requestStoragePermission();
+    const unsubscribeLoaded = rewardedInterstitial.addAdEventListener(
+      RewardedAdEventType.LOADED,
+      () => {
+        setLoaded(true);
+      },
+    );
+    const unsubscribeEarned = rewardedInterstitial.addAdEventListener(
+      RewardedAdEventType.EARNED_REWARD,
+      reward => {
+        console.log('User earned reward of ', reward);
+      },
+    );
+
+    // Start loading the rewarded interstitial ad straight away
+    rewardedInterstitial.load();
+
+    // Unsubscribe from events on unmount
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+    };
+  }, []);
+
+  if (!loaded) {
+    return null;
+  }
+
   return (
     <View
       style={{
@@ -168,28 +266,31 @@ const HomeScreen = (props: Props) => {
         }}
       />
       <StatusBar translucent backgroundColor={'transparent'} />
-      <View style={{height: Dimensions.get('screen').height * 0.08}} />
+      <View style={{height: Dimensions.get('screen').height * 0.06}} />
       <Text
         style={{
-          color: '#f0fdf4',
+          color: '#fff',
           fontSize: 35,
           paddingHorizontal: 15,
           fontWeight: '800',
           textAlign: 'center',
         }}>
-        {/* Save My Reel */}
+        ReelSaver
       </Text>
-      <ScrollView automaticallyAdjustContentInsets={true}>
+      <ScrollView
+        style={{marginBottom: Dimensions.get('screen').height * 0.035}}>
         <View style={{height: Dimensions.get('screen').height * 0.03}} />
         {/* Search Contained */}
-        <View style={{flexDirection: 'row', gap: 4, alignSelf: 'center'}}>
+        <View style={{gap: 4, alignSelf: 'center', alignItems: 'center'}}>
           <TextInput
             placeholder="https://your_reel_url"
             style={styles?.inputStyle}
             placeholderTextColor={'#666'}
             onChangeText={setUrl}
           />
-          <View style={{height: Dimensions.get('screen').height * 0.01}} />
+          <View style={{height: Dimensions.get('screen').height * 0.002}} />
+          <AdsScreen ADS_ID={BANNER_ID1} />
+          <View style={{height: Dimensions.get('screen').height * 0.002}} />
           <TouchableOpacity
             style={{
               alignItems: 'center',
@@ -197,6 +298,8 @@ const HomeScreen = (props: Props) => {
               backgroundColor: '#f2f2f2',
               paddingHorizontal: 14,
               borderRadius: 8,
+              width: Dimensions.get('screen').width * 0.35,
+              height: Dimensions.get('screen').height * 0.045,
             }}
             disabled={loading}
             activeOpacity={0.7}
@@ -214,11 +317,12 @@ const HomeScreen = (props: Props) => {
               />
             )}
           </TouchableOpacity>
+          <View style={{height: Dimensions.get('screen').height * 0.002}} />
+          <AdsScreen ADS_ID={BANNER_ID2} />
         </View>
         {fbReelInfo?.payload?.map((item: any) => {
           const img = item?.thumbnails[0]?.real;
           const video_path = item?.path;
-          console.log(img);
           return (
             <View
               key={img}
@@ -274,12 +378,118 @@ const HomeScreen = (props: Props) => {
           );
         })}
 
-        {isDownloading && (
-          <Progress.Bar
-            progress={downloadProgress}
-            width={Dimensions.get('screen').width * 0.8}
-            style={styles.progressBar}
-          />
+        {instaReelInfo && (
+          <View
+            key={'87234'}
+            style={{
+              marginTop: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 10,
+            }}>
+            <Image
+              source={{uri: instaReelInfo?.image_url}}
+              style={{
+                width: Dimensions.get('screen').width * 0.8,
+                height: Dimensions.get('screen').height * 0.4,
+                borderRadius: 10,
+              }}
+              resizeMode="cover"
+            />
+            <TouchableOpacity
+              style={{
+                marginTop: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'skyblue',
+                paddingHorizontal: 14,
+                borderRadius: 8,
+                height: Dimensions.get('screen').height * 0.056,
+                flexDirection: 'row',
+              }}
+              disabled={isDownloading}
+              activeOpacity={0.7}
+              onPress={() => downloadFile({url: instaReelInfo?.video_url})}>
+              <Image
+                source={require('../../assets/Download.png')}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 10,
+                }}
+                resizeMode="cover"
+              />
+              <Text
+                style={{
+                  color: '#333',
+                  fontSize: 25,
+                  fontWeight: '600',
+                  textAlign: 'center',
+                }}>
+                Download
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {youtubeReelInfo && (
+          <View
+            key={'87234'}
+            style={{
+              marginTop: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 10,
+            }}>
+            <Image
+              source={{uri: youtubeReelInfo?.thumbnail}}
+              style={{
+                width: Dimensions.get('screen').width * 0.8,
+                height: Dimensions.get('screen').height * 0.4,
+                borderRadius: 10,
+              }}
+              resizeMode="cover"
+            />
+            {youtubeReelInfo?.video_formats?.map((item: any, index: number) => {
+              if (item?.url) {
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={{
+                      marginTop: 20,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'skyblue',
+                      paddingHorizontal: 14,
+                      borderRadius: 8,
+                      height: Dimensions.get('screen').height * 0.056,
+                      flexDirection: 'row',
+                    }}
+                    disabled={isDownloading}
+                    activeOpacity={0.7}
+                    onPress={() => downloadFile({url: item?.url})}>
+                    <Image
+                      source={require('../../assets/Download.png')}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 10,
+                      }}
+                      resizeMode="cover"
+                    />
+                    <Text
+                      style={{
+                        color: '#333',
+                        fontSize: 25,
+                        fontWeight: '600',
+                        textAlign: 'center',
+                      }}>
+                      Download {item?.quality}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
+            })}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -290,7 +500,7 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   inputStyle: {
-    width: Dimensions.get('screen').width * 0.8,
+    width: Dimensions.get('screen').width * 0.9,
     borderRadius: 8,
     borderColor: '#fff',
     height: Dimensions.get('screen').height * 0.05,

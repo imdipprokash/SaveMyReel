@@ -1,29 +1,25 @@
 import axios from 'axios';
+import FormData from 'form-data';
 
 //https://igdownloader.app/en/download-instagram-reels
 
-export const getInstReelDownloadLink = ({url}: any) => {
-  const FormData = require('form-data');
-  let data = new FormData();
-  data.append('recaptchaToken', '');
-  data.append('q', url);
-  data.append('t', 'media');
-  data.append('lang', 'en');
-
-  let config = {
-    method: 'post',
-    maxBodyLength: Infinity,
-    url: 'https://v3.igdownloader.app/api/ajaxSearch',
-    headers: {
-      // ...data.getHeaders(),
+export const getInstReelDownloadLink = async ({url}: any) => {
+  const options = {
+    method: 'GET',
+    url: 'https://instagram-reels-downloader2.p.rapidapi.com/.netlify/functions/api/getLink',
+    params: {
+      url: url,
     },
-    data: data,
+    headers: {
+      'x-rapidapi-key': '01d5613ffdmshd7ca4b4d3d606a2p184b43jsn35a8afacd250',
+      'x-rapidapi-host': 'instagram-reels-downloader2.p.rapidapi.com',
+    },
   };
 
-  const response = axios.request(config).then(response => {
-    console.log(response);
-    return response;
-  });
-
-  return response;
+  try {
+    const response = await axios.request(options);
+    console.log(response.data);
+  } catch (error) {
+    console.error(error);
+  }
 };
