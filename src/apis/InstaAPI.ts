@@ -15,13 +15,14 @@ export const getInstReelDownloadLink = ({url}: any) => {
     maxBodyLength: Infinity,
     url: 'https://v3.igdownloader.app/api/ajaxSearch',
     headers: {
-      ...data.getHeaders(),
+      // ...data.getHeaders(),
     },
     data: data,
   };
 
   const response = axios.request(config).then(response => {
-    return response.data;
+    console.log(response);
+    return response;
   });
 
   return response;

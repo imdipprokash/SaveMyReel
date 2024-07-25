@@ -17,6 +17,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {getReelDownloadURl, getReelInfo} from '../../apis/FBReelAPI';
 import RNFetchBlob from 'rn-fetch-blob';
 import * as Progress from 'react-native-progress';
+import {getInstReelDownloadLink} from '../../apis/InstaAPI';
 
 type Props = {};
 
@@ -75,7 +76,7 @@ const HomeScreen = (props: Props) => {
       ToastAndroid.show('Enter a reel url', 1000);
       return;
     }
-    setLoading(true);
+    // setLoading(true);
     setFbReelInfo(undefined);
     if (url.includes('facebook.com') || url.includes('fb.watch')) {
       try {
@@ -97,7 +98,15 @@ const HomeScreen = (props: Props) => {
         return;
       }
     } else if (url.includes('instagram.com')) {
-      console.log('Instagram');
+      console.log('Hlw');
+      try {
+        const result = await getInstReelDownloadLink({url});
+        console.log(result);
+      } catch (error) {
+        console.log(error);
+        ToastAndroid.show('Server not working', 1000);
+        return;
+      }
     } else if (url.includes('youtube.com')) {
       console.log('YouTube');
     } else {
@@ -105,6 +114,8 @@ const HomeScreen = (props: Props) => {
       return;
     }
   };
+  const GetInstaReelHandler = async () => {};
+
   const GetFbReelInfo = async () => {
     if (fbReelJobId) {
       try {
