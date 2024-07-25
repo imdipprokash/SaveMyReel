@@ -45,7 +45,7 @@ export const getReelDownloadURl = async ({job_id}: {job_id: string}) => {
   };
 
   const response = axios.request(config).then(response => {
-    return response;
+    return response?.data;
   });
 
   return response;
