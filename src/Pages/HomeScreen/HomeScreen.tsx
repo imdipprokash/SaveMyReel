@@ -12,9 +12,6 @@ import {
   Image,
   ToastAndroid,
   Alert,
-  Permission,
-  PermissionsAndroid,
-  Platform,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
 import {getReelDownloadURl, getReelInfo} from '../../apis/FBReelAPI';
@@ -28,6 +25,7 @@ import {
   RewardedAdEventType,
   TestIds,
 } from 'react-native-google-mobile-ads';
+import {requestStoragePermission} from '../../utils/AskPermission';
 
 type Props = {};
 const adUnitId = __DEV__ ? TestIds.REWARDED_INTERSTITIAL : REWARDED_ID;
@@ -38,29 +36,6 @@ const rewardedInterstitial = RewardedInterstitialAd.createForAdRequest(
     keywords: ['fashion', 'clothing'],
   },
 );
-
-const requestStoragePermission = async () => {
-  try {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      {
-        title: 'Storage Permission',
-        message: 'App needs access to your storage to download files.',
-        buttonNeutral: 'Ask Me Later',
-        buttonNegative: 'Cancel',
-        buttonPositive: 'OK',
-      },
-    );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      console.log('Permission granted');
-      // Proceed with file download
-    } else {
-      console.log('Permission denied');
-    }
-  } catch (err) {
-    console.warn(err);
-  }
-};
 
 const HomeScreen = (props: Props) => {
   const intervalIdRef: any = useRef(null);
@@ -80,6 +55,7 @@ const HomeScreen = (props: Props) => {
   const [downloadCompleted, setDownloadCompleted] = useState(false);
 
   const downloadFile = async ({url}: {url: string}) => {
+    requestStoragePermission();
     setIsDownloading(true);
     setDownloadCompleted(false);
     setDownloadProgress(0);
@@ -180,7 +156,7 @@ const HomeScreen = (props: Props) => {
         return;
       }
     } else {
-      ToastAndroid.show('Enter a reel url', 1000);
+      ToastAndroid.show('Url not Valid', 1000);
       return;
     }
   };
@@ -254,22 +230,23 @@ const HomeScreen = (props: Props) => {
   return (
     <View
       style={{
+        backgroundColor: '#ebebeb',
         width: Dimensions.get('screen').width,
         height: Dimensions.get('screen').height,
       }}>
-      <ImageBackground
+      {/* <ImageBackground
         source={require('../../assets/BgImage1.jpeg')}
         style={{
           width: Dimensions.get('screen').width,
           height: Dimensions.get('screen').height,
           position: 'absolute',
         }}
-      />
+      /> */}
       <StatusBar translucent backgroundColor={'transparent'} />
       <View style={{height: Dimensions.get('screen').height * 0.06}} />
       <Text
         style={{
-          color: '#fff',
+          color: '#666',
           fontSize: 35,
           paddingHorizontal: 15,
           fontWeight: '800',
@@ -295,7 +272,7 @@ const HomeScreen = (props: Props) => {
             style={{
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#f2f2f2',
+              backgroundColor: '#fff',
               paddingHorizontal: 14,
               borderRadius: 8,
               width: Dimensions.get('screen').width * 0.35,
@@ -513,7 +490,7 @@ const styles = StyleSheet.create({
   btnStyle: {
     width: Dimensions.get('screen').width * 0.5,
     borderRadius: 10,
-    borderColor: '#fff',
+    borderColor: '#666',
     backgroundColor: 'skyblue',
     height: Dimensions.get('screen').height * 0.055,
     alignSelf: 'center',
